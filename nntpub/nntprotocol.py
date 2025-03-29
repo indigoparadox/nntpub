@@ -3,6 +3,8 @@ import logging
 import asyncio
 from datetime import datetime
 
+from .sources import NewsSource
+
 class NNTPNotFoundException( Exception ):
     pass
 
@@ -29,20 +31,14 @@ class NNTPClientHandler( object ):
 
 class NNTPServer( object ):
 
-    def __init__( self, server_address, server_port, **kwargs ):
+    def __init__( self, server_address : str, server_port : int, source : NewsSource, **kwargs ):
         self.server_address = server_address
         self.logger = logging.getLogger( 'nntproto.server' )
         self.domain = 'nntp.example.com'
         self.server_port = server_port
+        self.source = source
         if 'domain' in kwargs:
             self.domain = kwargs['domain']
-        self.groups = {
-            'control': {'desc': 'News server internal group', 'msg': []},
-            'junk': {'desc': 'News server internal group', 'msg': [
-                {'id': 7, 'subject': 'foo', 'body': 'test msg 1\r\nyo!', 'from': 'fromguy'},
-                {'id': 8, 'subject': 'fii', 'body': 'test msg 2\r\nhello!', 'from': 'fromotherguy'}
-            ]}
-        }
 
     async def listen( self ):
         self.server = await asyncio.start_server( self._handle_client, self.server_address, self.server_port )
@@ -56,25 +52,25 @@ class NNTPServer( object ):
     def send_list( self, client : NNTPClientHandler ):
 
         client.write_line( '215 Descriptions in form "group description"' )
-        for group in self.groups:
-            client.write_line( f'%s %s' % (group, self.groups[group]['desc']) )
+        for group in self.source:
+            client.write_line( f'%s %s' % (group.name, group.desc) )
         client.write_line( '.' )
 
     def send_group_meta( self, client : NNTPClientHandler, group_name : str ):
-        if not group_name in self.groups:
+        if not group_name in self.source:
             self.logger.warning( 'invalid group requested: %s', group_name )
             client.write_line( '411 No such group' )
             raise NNTPNotFoundException
         
-        group_len = len( self.groups[group_name]['msg'] )
+        group_len = self.source[group_name].count_messages()
         if 0 >= group_len:
             client.write_line( f'211 0 0 0 %s' % (group_name,) )
             return
         
         client.write_line( f'211 %d %d %d %s' % \
             (group_len, 
-            self.groups[group_name]['msg'][0]['id'], 
-            self.groups[group_name]['msg'][-1]['id'], 
+            self.source[group_name].get_first_msg()['id'], 
+            self.source[group_name].get_last_msg()['id'], 
             group_name) )
         
     def send_group_list( self, client : NNTPClientHandler, group_name: str, start : int, end : int = -1 ):
@@ -86,7 +82,7 @@ class NNTPServer( object ):
         client.write_line( '224 Overview information follows' )
         
         in_range = False
-        for msg in self.groups[group_name]['msg']:
+        for msg in self.source[group_name]:
             if start == msg['id'] or (-1 == start and end == msg['id']):
                 in_range = True
             if in_range:
@@ -108,14 +104,15 @@ class NNTPServer( object ):
             raise NNTPNotFoundException
         
         # TODO: More efficient ID retrieval.
-        for msg in self.groups[group_name]['msg']:
+        for msg in self.source[group_name]:
             if msg['id'] != msg_id:
                 continue
 
             client.write_line( f'220 %d <%d@%s>' % (msg['id'], msg['id'], self.domain) )
             client.write_line( f'From: %s' % (msg['from'],) )
             client.write_line( f'Subject: %s' % (msg['subject'],) )
-            client.write_line( f'Date: %s' % (str( datetime.now()),) )
+            client.write_line( f'Date: %s' % (msg['date'],) )
+            client.write_line( f'Newsgroups: %s' % (group_name,))
             client.write_line( f'Message-ID: <%d@%s>' % (msg['id'],self.domain) )
             client.write_line( '' )
             for line in msg['body'].split( '\r\n' ):

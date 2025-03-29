@@ -5,6 +5,7 @@ import asyncio
 from configparser import ConfigParser
 
 from .nntprotocol import NNTPServer
+from .sources.random import RandomSource
 
 def main():
 
@@ -39,9 +40,12 @@ def main():
     except:
         logger.warning( 'no listen port specified; using %d', listen_port )
 
+    src_config = dict( config['source'] )
+    source = RandomSource( **src_config )
+
     # Setup server.
-    config_arr = dict( config['nntp'] )
-    server = NNTPServer( listen_addr, listen_port, **config_arr )
+    nntp_config = dict( config['nntp'] )
+    server = NNTPServer( listen_addr, listen_port, source, **nntp_config )
     asyncio.run( server.listen() )
 
 if '__main__' == __name__:
