@@ -1,20 +1,44 @@
 
-import socketserver
+import asyncio
 
 NNTP_STATE_INIT = 0
 
-class NNTPSession( socketserver.StreamRequestHandler ):
+class NNTPServer( object ):
 
-    def handle( self ):
+    def __init__( self, server_address ):
+        self.server_address = server_address
 
-        self.nntp_state = NNTP_STATE_INIT
+    async def listen( self ):
+        self.server = await asyncio.start_server( self._handle_client, self.server_address, 60119 )
+        async with self.server:
+            await self.server.serve_forever()
 
-        self.wfile.write( '200 news.nntpub.example.com NNTPub news\r\n' )
+    def send_banner( self, wfile ):
+        wfile.write( b'200 news.nntpub.example.com NNTPub news\r\n' )
 
-        while line = self.rfile.readline( 10000 ).rstrip():
-            print( line )
+    def send_list( self, wfile ):
 
-class NNTPServer( socketserver.TCPServer ):
+        wfile.write( b'215 Descriptions in form "group description"\r\n' )
+        wfile.write( b'control News server internal group\r\n' )
+        wfile.write( b'junk News server internal group\r\n' )
+        wfile.write( b'.\r\n' )
 
-    def __init__( self, server_address, bind_and_activate = True ):
-        super().__init__( server_address, NNTPSession, bind_and_activate )
+    async def _handle_client( self, rfile, wfile ):
+    
+        line = None
+        running = True
+        nntp_state = NNTP_STATE_INIT
+
+        self.send_banner( wfile )
+
+        while running:
+            line = (await rfile.readline())
+            line = line.decode( 'utf8' ).strip()
+            if 'MODE READER' == line:
+                self.send_banner( wfile )
+
+            if 'LIST' == line:
+                self.send_list( wfile )
+
+            elif '' != line:
+                print( line )
