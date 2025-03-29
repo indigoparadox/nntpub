@@ -9,7 +9,8 @@
             "type": "python",
             "request": "launch",
             "module": "nntpub",
-            "justMyCode": false
+            "justMyCode": false,
+            "args": ["-c", "${workspaceFolder}/nntpub.ini", "-v"]
         },
     ]
 }
