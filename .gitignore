@@ -1,3 +1,4 @@
 *.pcap
 *.dump
 .venv
+__pycache__
