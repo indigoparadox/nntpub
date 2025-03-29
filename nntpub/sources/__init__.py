@@ -2,7 +2,7 @@
 from typing import Generator
 
 class NewsGroup( object ):
-    def __init__( self, name, desc ):
+    def __init__( self, name, desc, **kwargs ):
         self.name = name
         self.desc = desc
 

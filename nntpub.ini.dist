@@ -4,5 +4,4 @@ port = 119
 
 [source]
 module = random
-start_id = 100
 

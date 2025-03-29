@@ -3,6 +3,7 @@ import argparse
 import logging
 import asyncio
 from configparser import ConfigParser
+from importlib import import_module
 
 from .nntprotocol import NNTPServer
 from .sources.random import RandomSource
@@ -40,8 +41,9 @@ def main():
     except:
         logger.warning( 'no listen port specified; using %d', listen_port )
 
+    source_mod = import_module( 'nntpub.sources.' + config['source']['module'] )
     src_config = dict( config['source'] )
-    source = RandomSource( **src_config )
+    source = source_mod.SOURCE_CLASS( **src_config )
 
     # Setup server.
     nntp_config = dict( config['nntp'] )
