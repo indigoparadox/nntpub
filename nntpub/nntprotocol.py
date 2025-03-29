@@ -199,3 +199,7 @@ class NNTPServer( object ):
 
             elif '' != line:
                 logging.warning( 'unknown command: "%s"', line )
+
+            else:
+                logging.info( 'hanging up' )
+                return
