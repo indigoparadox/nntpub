@@ -28,3 +28,8 @@ Configuration options for the newsgroup source.
 #### module
 
 Module to use as a source. Currently available options are: random
+
+## References
+
+- https://www.rfc-editor.org/rfc/rfc3977
+
